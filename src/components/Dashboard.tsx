@@ -1,0 +1,81 @@
+'use client'
+
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import Modal from '@/components/Modal';
+import OnboardingSectionForm from '@/components/OnboardingSectionForm';
+import { onboardingFormSchema } from '@/lib/onboardingFormSchema';
+
+export default function Dashboard({ session }: { session: any }) {
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  const currentSection = onboardingFormSchema.find(section => section.id === activeModal);
+
+  // Define which sections need wider layouts
+  const wideLayoutSections = ['employment', 'contact', 'education'];
+
+  return (
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
+      {/* Side Menu */}
+      <motion.aside
+        className="w-1/5 bg-white dark:bg-gray-800 shadow-lg p-4 overflow-y-auto"
+        initial={{ x: '-100%' }}
+        animate={{ x: 0 }}
+        transition={{ duration: 0.5, ease: 'easeInOut' }}
+      >
+        <h2 className="text-2xl font-bold text-foreground mb-6 px-2">Onboarding Steps</h2>
+        <nav className="space-y-2">
+          {onboardingFormSchema.map(section => (
+            <button
+              key={section.id}
+              onClick={() => setActiveModal(section.id)}
+              className="w-full text-left text-base font-medium p-3 rounded-md transition-all duration-300 ease-in-out text-gray-700 dark:text-gray-300 hover:text-black hover:bg-gradient-to-r from-[#f0d9ff] to-[#c9d9ff]"
+            >
+              {section.title}
+            </button>
+          ))}
+        </nav>
+      </motion.aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <h1 className="text-4xl font-bold text-foreground mb-4">
+            Welcome, {session.user.email}!
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-400">
+            Please complete your onboarding by selecting a section from the side menu.
+          </p>
+          
+          <div className="mt-12 p-8 bg-white dark:bg-gray-800 rounded-lg shadow-inner">
+            <h3 className="text-xl font-semibold text-center text-gray-500 dark:text-gray-400">
+              Onboarding Progress Graph (Coming Soon)
+            </h3>
+          </div>
+
+        </motion.div>
+      </main>
+
+      {/* Modal for Forms */}
+      <Modal
+        isOpen={!!activeModal}
+        onClose={() => setActiveModal(null)}
+        title={currentSection?.title || ''}
+        maxWidth={wideLayoutSections.includes(activeModal || '') ? 'max-w-3xl' : 'max-w-xl'} // Use 3xl for wide modals
+      >
+        {currentSection && (
+          <OnboardingSectionForm 
+            session={session} 
+            fields={currentSection.fields} 
+            title={currentSection.title} 
+            labelWidth={wideLayoutSections.includes(currentSection.id) ? 'w-72' : 'w-48'} // Use wider labels for specific sections
+          />
+        )}
+      </Modal>
+    </div>
+  );
+}
