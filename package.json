@@ -9,8 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/auth-helpers-react": "^0.5.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.75.0",
+    "framer-motion": "^12.23.24",
     "next": "15.5.5",
     "react": "19.1.0",
     "react-dom": "19.1.0"

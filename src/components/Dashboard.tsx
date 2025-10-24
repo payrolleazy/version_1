@@ -1,13 +1,38 @@
-'use client'
-
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Modal from '@/components/Modal';
+import OnboardingDocumentUpload from '@/components/OnboardingDocumentUpload';
+import OnboardingStatusDashboard from './OnboardingStatusDashboard';
 import OnboardingSectionForm from '@/components/OnboardingSectionForm';
-import { onboardingFormSchema } from '@/lib/onboardingFormSchema';
+import { onboardingFormSchema } from '@/lib/onboardingFormSchema'; // Import onboardingFormSchema
 
 export default function Dashboard({ session }: { session: any }) {
-  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = React.useState<string | null>(null);
+  const [documentTypes, setDocumentTypes] = React.useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchDocumentTypes = async () => {
+      try {
+        const response = await fetch('/api/get-document-types', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ config_id: 'a7f22a6d-88fb-484a-9d50-8b89639b4e4b', accessToken: session.access_token }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message);
+        const documentNames = Array.isArray(result.data) ? result.data.map((doc: any) => doc.documents) : [];
+        setDocumentTypes(documentNames);
+      } catch (error) {
+        console.error('Error fetching document checklist:', error);
+      }
+    };
+
+    if (session) {
+      fetchDocumentTypes();
+    }
+  }, [session]);
 
   const currentSection = onboardingFormSchema.find(section => section.id === activeModal);
 
@@ -52,22 +77,21 @@ export default function Dashboard({ session }: { session: any }) {
           </p>
           
           <div className="mt-12 p-8 bg-white dark:bg-gray-800 rounded-lg shadow-inner">
-            <h3 className="text-xl font-semibold text-center text-gray-500 dark:text-gray-400">
-              Onboarding Progress Graph (Coming Soon)
-            </h3>
+            {/* Onboarding Status Dashboard will be rendered here */}
+            <OnboardingStatusDashboard />
           </div>
 
         </motion.div>
       </main>
 
-      {/* Modal for Forms */}
+      {/* Modal for Forms (excluding documents) */}
       <Modal
-        isOpen={!!activeModal}
+        isOpen={!!activeModal && activeModal !== 'documents'}
         onClose={() => setActiveModal(null)}
         title={currentSection?.title || ''}
         maxWidth={wideLayoutSections.includes(activeModal || '') ? 'max-w-3xl' : 'max-w-xl'} // Use 3xl for wide modals
       >
-        {currentSection && (
+        {currentSection && activeModal !== 'documents' && (
           <OnboardingSectionForm 
             session={session} 
             fields={currentSection.fields} 
@@ -76,6 +100,14 @@ export default function Dashboard({ session }: { session: any }) {
           />
         )}
       </Modal>
+
+      {/* OnboardingDocumentUpload Modal */}
+      <OnboardingDocumentUpload 
+        session={session} 
+        isOpen={activeModal === 'documents'} 
+        onClose={() => setActiveModal(null)} 
+        documentTypes={documentTypes} 
+      />
     </div>
   );
 }

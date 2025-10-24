@@ -4,21 +4,42 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { motion } from 'framer-motion';
-
-import OnboardingForm from '@/components/OnboardingForm';
+import { onboardingFormSchema } from '@/lib/onboardingFormSchema';
+import OnboardingSectionForm from '@/components/OnboardingSectionForm';
+import OnboardingDocumentUpload from '@/components/OnboardingDocumentUpload';
+import Button from '@/components/ui/Button';
 
 export default function OnboardingPage() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [documentTypes, setDocumentTypes] = useState<string[]>([]);
   const router = useRouter();
 
   useEffect(() => {
-    const checkSession = async () => {
+    const checkSessionAndFetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
+      if (session) {
+        try {
+          const response = await fetch('/api/get-document-types', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ config_id: 'a7f22a6d-88fb-484a-9d50-8b89639b4e4b', accessToken: session.access_token }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.message);
+          const documentNames = Array.isArray(result.data) ? result.data.map((doc: any) => doc.documents) : [];
+          setDocumentTypes(documentNames);
+        } catch (error) {
+          console.error('Error fetching document checklist:', error);
+        }
+      }
       setLoading(false);
     };
-    checkSession();
+    checkSessionAndFetchData();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -49,7 +70,21 @@ export default function OnboardingPage() {
       transition={{ duration: 0.5 }}
     >
       <h1 className="text-4xl font-bold text-foreground mb-8 text-center">Employee Onboarding</h1>
-      <OnboardingForm session={session} />
+      <div className="space-y-8">
+        {onboardingFormSchema.map((section) => (
+          <div key={section.id}>
+            <h2 className="text-2xl font-semibold text-foreground mb-4">{section.title}</h2>
+            {section.id === 'documents' ? (
+              <>
+                <Button onClick={() => setIsModalOpen(true)}>Document Uploads</Button>
+                <OnboardingDocumentUpload session={session} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} documentTypes={documentTypes} />
+              </>
+            ) : (
+              <OnboardingSectionForm session={session} fields={section.fields} title={section.title} />
+            )}
+          </div>
+        ))}
+      </div>
     </motion.div>
   );
 }

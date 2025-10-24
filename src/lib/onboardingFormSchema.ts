@@ -109,5 +109,10 @@ export const onboardingFormSchema = [
       { name: 'previous_org_3_service_period_to_epm', label: 'Previous Org 3 Service Period To', type: 'date' },
       { name: 'previous_org_3_reason_of_leaving_epm', label: 'Previous Org 3 Reason for Leaving', type: 'textarea' },
     ]
-  },
-];
+      },
+      {
+        id: 'documents',
+        title: 'Document Uploads',
+        fields: []
+      },
+    ];

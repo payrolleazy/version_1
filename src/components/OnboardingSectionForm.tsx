@@ -67,7 +67,14 @@ export default function OnboardingSectionForm({ session, fields, title, labelWid
     setIsSubmitting(true);
 
     try {
-      const completePayload = { ...baseRecord, ...sectionFormData };
+      const processedSectionData = { ...sectionFormData };
+      fields.forEach(field => {
+        if (!field.required && processedSectionData[field.name] === '') {
+          processedSectionData[field.name] = null;
+        }
+      });
+
+      const completePayload = { ...baseRecord, ...processedSectionData };
 
       const payload = {
         config_id: 'ebcda741-8118-4ec0-8180-d6cbc73153d0',
