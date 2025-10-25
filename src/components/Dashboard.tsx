@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import Modal from '@/components/Modal';
 import OnboardingDocumentUpload from '@/components/OnboardingDocumentUpload';
 import OnboardingStatusDashboard from './OnboardingStatusDashboard';
 import OnboardingSectionForm from '@/components/OnboardingSectionForm';
-import { onboardingFormSchema } from '@/lib/onboardingFormSchema'; // Import onboardingFormSchema
+import { onboardingFormSchema } from '@/lib/onboardingFormSchema';
+import type { Session } from '@supabase/supabase-js';
 
-export default function Dashboard({ session }: { session: any }) {
+export default function Dashboard({ session }: { session: Session }) {
   const [activeModal, setActiveModal] = React.useState<string | null>(null);
   const [documentTypes, setDocumentTypes] = React.useState<string[]>([]);
 
@@ -22,7 +23,7 @@ export default function Dashboard({ session }: { session: any }) {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message);
-        const documentNames = Array.isArray(result.data) ? result.data.map((doc: any) => doc.documents) : [];
+        const documentNames = Array.isArray(result.data) ? result.data.map((doc: { documents: string }) => doc.documents) : [];
         setDocumentTypes(documentNames);
       } catch (error) {
         console.error('Error fetching document checklist:', error);
@@ -43,7 +44,7 @@ export default function Dashboard({ session }: { session: any }) {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
       {/* Side Menu */}
       <motion.aside
-        className="w-1/5 bg-white dark:bg-gray-800 shadow-lg p-4 overflow-y-auto"
+        className="w-64 bg-white dark:bg-gray-800 shadow-lg p-4 overflow-y-auto flex-shrink-0"
         initial={{ x: '-100%' }}
         animate={{ x: 0 }}
         transition={{ duration: 0.5, ease: 'easeInOut' }}
@@ -54,7 +55,7 @@ export default function Dashboard({ session }: { session: any }) {
             <button
               key={section.id}
               onClick={() => setActiveModal(section.id)}
-              className="w-full text-left text-base font-medium p-3 rounded-md transition-all duration-300 ease-in-out text-gray-700 dark:text-gray-300 hover:text-black hover:bg-gradient-to-r from-[#f0d9ff] to-[#c9d9ff]"
+              className="w-full text-left text-base font-medium p-3 rounded-md transition-all duration-200 text-gray-700 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-gray-700 dark:hover:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {section.title}
             </button>
@@ -76,9 +77,8 @@ export default function Dashboard({ session }: { session: any }) {
             Please complete your onboarding by selecting a section from the side menu.
           </p>
           
-          <div className="mt-12 p-8 bg-white dark:bg-gray-800 rounded-lg shadow-inner">
-            {/* Onboarding Status Dashboard will be rendered here */}
-            <OnboardingStatusDashboard />
+          <div className="mt-12 p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <OnboardingStatusDashboard session={session} />
           </div>
 
         </motion.div>

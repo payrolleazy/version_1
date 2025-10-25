@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 import { onboardingFormSchema } from '@/lib/onboardingFormSchema';
 
 interface Field {
@@ -16,15 +17,15 @@ interface Field {
 }
 
 interface OnboardingSectionFormProps {
-  session: any;
+  session: Session;
   fields: Field[];
   title: string;
   labelWidth?: string;
 }
 
 export default function OnboardingSectionForm({ session, fields, title, labelWidth = 'w-48' }: OnboardingSectionFormProps) {
-  const [baseRecord, setBaseRecord] = useState<{ [key: string]: any } | null>(null);
-  const [sectionFormData, setSectionFormData] = useState<{ [key: string]: any }>({});
+  const [baseRecord, setBaseRecord] = useState<Record<string, unknown> | null>(null);
+  const [sectionFormData, setSectionFormData] = useState<Record<string, unknown>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -46,7 +47,7 @@ export default function OnboardingSectionForm({ session, fields, title, labelWid
 
       setBaseRecord(data);
 
-      const initialSectionData: { [key: string]: any } = {};
+      const initialSectionData: Record<string, unknown> = {};
       fields.forEach(field => {
         initialSectionData[field.name] = data?.[field.name] ?? '';
       });
@@ -106,7 +107,7 @@ export default function OnboardingSectionForm({ session, fields, title, labelWid
       setBaseRecord(completePayload);
       setMessage({ type: 'success', text: `${title} data saved successfully!` });
 
-    } catch (error: any) {
+    } catch (error) {
       console.error(`Error saving ${title} data:`, error);
       setMessage({ type: 'error', text: error.message || 'An unexpected error occurred.' });
     } finally {

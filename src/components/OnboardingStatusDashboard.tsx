@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSession } from '@supabase/auth-helpers-react'; // Assuming you have a way to get the session
-import { motion, AnimatePresence } from 'framer-motion';
-import Button from './ui/Button'; // Assuming a Button component exists
-import Loader from './ui/Loader'; // Assuming a Loader component exists
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import Loader from './ui/Loader';
+import type { Session } from '@supabase/supabase-js';
 
 interface OnboardingStatusData {
   onboarding_documentation: {
@@ -26,26 +25,33 @@ interface OnboardingStatusData {
   };
 }
 
-const OnboardingStatusDashboard: React.FC = () => {
-  const session = useSession(); // Get session from auth-helpers-react
+interface OnboardingStatusDashboardProps {
+  session?: Session;
+}
+
+export default function OnboardingStatusDashboard({ session }: OnboardingStatusDashboardProps) {
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatusData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOnboardingStatus = async () => {
+      if (!session?.access_token) {
+        setError('User session not found. Please log in.');
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
-      console.log('Fetching onboarding status with session:', session); // Log session when fetching
 
       try {
         const response = await fetch('/api/onboarding-status', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            // Authorization header is NOT needed here, as accessToken is in body
           },
-          body: JSON.stringify({ accessToken: session.access_token }), // Pass accessToken in body
+          body: JSON.stringify({ accessToken: session.access_token }),
         });
 
         if (!response.ok) {
@@ -55,23 +61,21 @@ const OnboardingStatusDashboard: React.FC = () => {
 
         const data = await response.json();
         setOnboardingStatus(data);
-      } catch (err: any) {
-        setError(err.message || 'An unknown error occurred.');
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+        setError(errorMessage);
         console.error('Error fetching onboarding status:', err);
-        console.log('Current session:', session); // Log the session object
-        console.log('Error message:', err.message); // Log the specific error message
       } finally {
         setIsLoading(false);
       }
     };
 
-    console.log('Checking session for fetch:', session, 'Access Token present:', !!session?.access_token);
-    if (session?.access_token) { // Only fetch if access_token is available
+    if (session?.access_token) {
       fetchOnboardingStatus();
-    } else if (!session && !isLoading) { // If no session and not already loading, set error
-      setError('User session not found. Please log in.');
+    } else {
+      setIsLoading(false);
     }
-  }, [session]);
+  }, [session?.access_token]);
 
   if (isLoading) {
     return (
@@ -85,8 +89,8 @@ const OnboardingStatusDashboard: React.FC = () => {
   if (error) {
     return (
       <div className="text-red-600 dark:text-red-400 p-4 bg-red-100 dark:bg-red-900 rounded-md">
-        <p>Error: {error}</p>
-        <p>Please ensure you are logged in and have the necessary permissions.</p>
+        <p className="font-semibold">Error: {error}</p>
+        <p className="text-sm mt-1">Please ensure you are logged in and have the necessary permissions.</p>
       </div>
     );
   }
@@ -114,7 +118,7 @@ const OnboardingStatusDashboard: React.FC = () => {
         <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-5">Profile Information</h3>
         <div className="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-8">
           <div className="relative w-32 h-32 flex-shrink-0">
-            <svg className="w-full h-full" viewBox="0 0 100 100">
+            <svg className="w-full h-full" viewBox="0 0 100 100" role="img" aria-label={`${onboarding_documentation.completion_percentage}% complete`}>
               <circle
                 className="text-gray-200 dark:text-gray-600 stroke-current"
                 strokeWidth="8"
@@ -168,7 +172,6 @@ const OnboardingStatusDashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* Document Upload Section */}
       <section>
         <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Document Uploads</h3>
         {Object.keys(employeedocumentation).length === 0 ? (
@@ -178,9 +181,9 @@ const OnboardingStatusDashboard: React.FC = () => {
             {Object.entries(employeedocumentation).map(([category, docStatus]) => (
               <div key={category} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md shadow-sm">
                 <h4 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-2 capitalize">{category.replace(/_/g, ' ')}</h4>
-                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-600 mb-2">
+                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-600 mb-2" role="progressbar" aria-valuenow={docStatus.completion_percentage} aria-valuemin={0} aria-valuemax={100}>
                   <div
-                    className="bg-green-600 h-2.5 rounded-full"
+                    className="bg-green-600 h-2.5 rounded-full transition-all duration-500"
                     style={{ width: `${docStatus.completion_percentage}%` }}
                   ></div>
                 </div>
@@ -198,8 +201,6 @@ const OnboardingStatusDashboard: React.FC = () => {
                     </ul>
                   </div>
                 )}
-                {/* Optional: Add a button to open the OnboardingDocumentUpload modal for this category */}
-                {/* <Button variant="secondary" size="sm" className="mt-3">Upload {category.replace(/_/g, ' ')}</Button> */}
               </div>
             ))}
           </div>
@@ -207,6 +208,4 @@ const OnboardingStatusDashboard: React.FC = () => {
       </section>
     </motion.div>
   );
-};
-
-export default OnboardingStatusDashboard;
+}

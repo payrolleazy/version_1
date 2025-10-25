@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Button from '@/components/ui/Button';
+import type { Session } from '@supabase/supabase-js';
 
 interface OnboardingFormProps {
-  session: any;
+  session: Session;
 }
 
 export default function OnboardingForm({ session }: OnboardingFormProps) {
@@ -64,7 +65,7 @@ export default function OnboardingForm({ session }: OnboardingFormProps) {
 
       setMessage({ type: 'success', text: 'Basic info submitted successfully!' });
       setFormData({ first_name_epm: '', last_name_epm: '', personal_mail_id_epm: '' });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Submission error:', error);
       setMessage({ type: 'error', text: error.message || 'An unexpected error occurred.' });
     } finally {
@@ -88,7 +89,7 @@ export default function OnboardingForm({ session }: OnboardingFormProps) {
             id="first_name_epm"
             value={formData.first_name_epm}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
             required
           />
         </div>
@@ -100,7 +101,7 @@ export default function OnboardingForm({ session }: OnboardingFormProps) {
             id="last_name_epm"
             value={formData.last_name_epm}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
             required
           />
         </div>
@@ -112,7 +113,7 @@ export default function OnboardingForm({ session }: OnboardingFormProps) {
             id="personal_mail_id_epm"
             value={formData.personal_mail_id_epm}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
             required
           />
         </div>

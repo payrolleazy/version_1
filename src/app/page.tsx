@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import Dashboard from '@/components/Dashboard'
-import Button from '@/components/ui/Button'
+import type { Session } from '@supabase/supabase-js'
 
 export default function Home() {
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,9 +25,12 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div >
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
     )
   }
 
@@ -42,11 +42,11 @@ export default function Home() {
         <div className="min-h-screen flex flex-row bg-gray-50 dark:bg-gray-900">
           {/* Welcome Part (3 units) */}
           <div
-            className="w-full relative flex items-center justify-center bg-gradient-to-r from-[#f0d9ff] to-[#c9d9ff] text-white p-8"
+            className="w-full relative flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-400 text-white p-8"
           >
             <div className="text-center z-10">
-              <h1 className="text-5xl font-bold">Welcome to Payrolleazy</h1>
-              <p className="mt-4 text-xl">Your seamless payroll solution.</p>
+              <h1 className="text-5xl font-bold drop-shadow-lg">Welcome to Payrolleazy</h1>
+              <p className="mt-4 text-xl opacity-95">Your seamless payroll solution.</p>
             </div>
           </div>
         </div>

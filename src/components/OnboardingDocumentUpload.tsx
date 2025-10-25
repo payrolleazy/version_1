@@ -1,11 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Button from '@/components/ui/Button';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Session } from '@supabase/supabase-js';
+
+interface UploadedFile {
+  name: string;
+}
 
 interface OnboardingDocumentUploadProps {
-  session: any;
+  session: Session;
   isOpen: boolean;
   onClose: () => void;
   documentTypes: string[];
@@ -16,7 +21,7 @@ export default function OnboardingDocumentUpload({ session, isOpen, onClose, doc
   const [documentType, setDocumentType] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -67,14 +72,15 @@ export default function OnboardingDocumentUpload({ session, isOpen, onClose, doc
       setFiles([]);
       handleListFiles();
 
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleListFiles = async () => {
+  const handleListFiles = useCallback(async () => {
     if (!documentType) return;
     try {
         const response = await fetch(`/api/secure-file-handler/list-decrypted-files?documentType=${documentType}&accessToken=${session.access_token}`, {
@@ -87,16 +93,17 @@ export default function OnboardingDocumentUpload({ session, isOpen, onClose, doc
             throw new Error(data.error || 'Failed to list files');
         }
         setUploadedFiles(data.successful);
-    } catch (error: any) {
-        setMessage({ type: 'error', text: error.message });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to list files';
+        setMessage({ type: 'error', text: errorMessage });
     }
-  };
+  }, [documentType, session.access_token]);
 
   useEffect(() => {
     if(isOpen && documentType && session?.access_token) {
         handleListFiles();
     }
-  }, [isOpen, documentType, session]);
+  }, [isOpen, documentType, session.access_token, handleListFiles]);
 
   return (
     <AnimatePresence>
@@ -122,7 +129,7 @@ export default function OnboardingDocumentUpload({ session, isOpen, onClose, doc
                   id="documentType"
                   value={documentType}
                   onChange={(e) => setDocumentType(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 hover:bg-gradient-to-r from-[#f0d9ff] to-[#c9d9ff]"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 transition-colors"
                   size={5}
                 >
                   <option value="">Select a document type</option>
@@ -136,7 +143,7 @@ export default function OnboardingDocumentUpload({ session, isOpen, onClose, doc
                 <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Files</label>
                 <motion.label
                   htmlFor="file-upload"
-                  className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:bg-gray-500 dark:hover:bg-gray-600"
+                  className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >

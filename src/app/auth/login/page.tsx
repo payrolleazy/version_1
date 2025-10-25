@@ -63,7 +63,7 @@ export default function LoginPage() {
         {message && <p className="text-red-500 text-sm">{message}</p>}
       </form>
       <div className="mt-6 text-center">
-        <p className="text-sm text-gray-600 dark:text-gray-400">Don't have an account? <Link href="/auth/signup"><Button variant="secondary" className="ml-2">Sign Up</Button></Link></p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">Don&apos;t have an account? <Link href="/auth/signup"><Button variant="secondary" className="ml-2">Sign Up</Button></Link></p>
       </div>
     </motion.div>
   );
