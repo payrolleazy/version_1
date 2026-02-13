@@ -172,15 +172,16 @@ export const HMS_GATEWAY_CONFIGS = {
   DEPARTMENT_EXCEL_UPLOAD: 'department-universal-excel-upload',
 
   // === Position Attributes - Designation ===
-  DESIGNATION_READ_APPROVED: 'designations-read-approved-ui',
-  DESIGNATION_READ_PENDING: 'designations-read-pending-ui',
-  DESIGNATION_READ_SCHEMA: 'designations-read-schema',
-  DESIGNATION_APPROVE: 'designations-approve-universal',
-  DESIGNATION_REJECT: 'designations-reject-universal',
-  DESIGNATION_BULK_INSERT: 'designations-bulk-insert',
+  DESIGNATION_READ_APPROVED: 'designation-read-approved-ui',
+  DESIGNATION_READ_PENDING: 'designation-read-pending-ui',
+  DESIGNATION_READ_SCHEMA: 'designation-read-schema',
+  DESIGNATION_APPROVE: 'designation-approve-universal',
+  DESIGNATION_REJECT: 'designation-reject-universal',
+  DESIGNATION_BULK_INSERT: 'designation-bulk-insert',
   DESIGNATION_SCHEMA_INSERT: 'designations-schema-insert',
-  DESIGNATION_TEMPLATE_DOWNLOAD: 'designations-template-download',
-  DESIGNATION_EXPORT_EXCEL: 'designations-master-export-to-excel',
+  DESIGNATION_TEMPLATE_DOWNLOAD: 'designation-template-download',
+  DESIGNATION_EXPORT_EXCEL: 'designation-master-export-to-excel',
+  DESIGNATION_EXCEL_UPLOAD: 'designation-universal-excel-upload',
 
   // === Position Attributes - Branch ===
   BRANCH_READ_APPROVED: 'branch-read-approved-ui',

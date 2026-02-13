@@ -10,16 +10,17 @@ import Tabs from '@/components/Tabs';
 import { DataTable, Pagination, Column } from '@/components/ui/DataTable';
 import { LoadingState, ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { callPgFunction } from '@/lib/useGateway';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { PAGINATION, HMS_GATEWAY_CONFIGS } from '@/lib/constants';
+import { PAGINATION, HMS_GATEWAY_CONFIGS, API_ENDPOINTS } from '@/lib/constants';
 import BulkUpload from '@/components/BulkUpload';
+import ExportUserRolesModal from '@/components/ExportUserRolesModal';
 
+// --- Types ---
 interface Designation {
   id: number;
   designation_name: string;
   approval_status: 'approved' | 'pending' | 'rejected';
   created_at: string;
-  creator_emp_code?: string;
+  custom_fields?: Record<string, any>;
   [key: string]: any;
 }
 
@@ -30,25 +31,43 @@ interface SchemaField {
   is_required: boolean;
 }
 
+// --- Main Page Component ---
 export default function DesignationMasterPage() {
   const { session, isLoading: isSessionLoading } = useSessionContext();
   const router = useRouter();
 
+  // Data State
   const [activeTab, setActiveTab] = useState<'approved' | 'pending'>('approved');
   const [data, setData] = useState<Designation[]>([]);
   const [schema, setSchema] = useState<SchemaField[]>([]);
+
+  // UI State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Modal States
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [templateDownloading, setTemplateDownloading] = useState(false);
+
+  // -- Metadata Modal State --
+  const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
+  const [metadataItem, setMetadataItem] = useState<Designation | null>(null);
+
+  // Action State
   const [editingItem, setEditingItem] = useState<Designation | null>(null);
   const [selectedForAction, setSelectedForAction] = useState<Designation[]>([]);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGINATION.DEFAULT_PAGE_SIZE);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  // --- Data Fetching ---
 
   const fetchData = useCallback(async () => {
     if (!session?.access_token) return;
@@ -58,9 +77,15 @@ export default function DesignationMasterPage() {
       const configId = activeTab === 'approved'
         ? HMS_GATEWAY_CONFIGS.DESIGNATION_READ_APPROVED
         : HMS_GATEWAY_CONFIGS.DESIGNATION_READ_PENDING;
-      const result = await callPgFunction(configId, { page_number: currentPage, page_size: pageSize }, session.access_token);
+
+      const result = await callPgFunction(
+        configId,
+        { page_number: currentPage, page_size: pageSize },
+        session.access_token
+      );
+
       if (result.success) {
-        const details = result.data?.details || result.data;
+        const details = result.data?.details || result.data || {};
         setData(details?.data || []);
         setTotalRecords(details?.total_records || 0);
       } else {
@@ -77,26 +102,55 @@ export default function DesignationMasterPage() {
     if (!session?.access_token) return;
     try {
       const result = await callPgFunction(HMS_GATEWAY_CONFIGS.DESIGNATION_READ_SCHEMA, {}, session.access_token);
-      if (result.success) setSchema(result.data?.data || []);
+      if (result.success) {
+        setSchema(result.data?.data || []);
+      }
     } catch (err) {
       console.error('Failed to fetch schema:', err);
     }
   }, [session]);
 
+  // Auth Check
   useEffect(() => {
     if (!isSessionLoading && !session) router.push('/admin/auth/login');
-    if (session) { fetchData(); fetchSchema(); }
-  }, [session, isSessionLoading, router, fetchData, fetchSchema]);
+  }, [session, isSessionLoading, router]);
 
-  const handleOpenFormModal = (item?: Designation) => { setEditingItem(item || null); setIsFormModalOpen(true); };
+  // Fetch data whenever activeTab or pagination changes
+  useEffect(() => {
+    if (session?.access_token) fetchData();
+  }, [fetchData, session?.access_token]);
+
+  // Fetch schema only once when session is ready
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchSchema();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.access_token]);
+
+  // --- Handlers ---
+
+  const handleOpenFormModal = (item?: Designation) => {
+    setEditingItem(item || null);
+    setIsFormModalOpen(true);
+  };
 
   const handleOpenConfirmModal = (action: 'approve' | 'reject', items: Designation[]) => {
-    setActionType(action); setSelectedForAction(items); setIsConfirmModalOpen(true);
+    setActionType(action);
+    setSelectedForAction(items);
+    setIsConfirmModalOpen(true);
+  };
+
+  // Metadata Handler
+  const handleViewMetadata = (item: Designation) => {
+    setMetadataItem(item);
+    setIsMetadataModalOpen(true);
   };
 
   const handleConfirmAction = async () => {
     if (!session?.access_token || !actionType || selectedForAction.length === 0) return;
     setActionLoading(true);
+    setError(null);
     try {
       const configId = actionType === 'approve' ? HMS_GATEWAY_CONFIGS.DESIGNATION_APPROVE : HMS_GATEWAY_CONFIGS.DESIGNATION_REJECT;
       const result = await callPgFunction(configId, { input_rows: selectedForAction.map(d => ({ id: d.id })) }, session.access_token);
@@ -110,25 +164,64 @@ export default function DesignationMasterPage() {
     }
   };
 
-  const handleTabChange = (tab: 'approved' | 'pending') => { setActiveTab(tab); setCurrentPage(1); setData([]); setTotalRecords(0); };
-
-  const handleExport = async () => {
-    if (!session?.access_token) return;
-    try { await callPgFunction(HMS_GATEWAY_CONFIGS.DESIGNATION_EXPORT_EXCEL, {}, session.access_token); } catch (err: any) { setError(err.message); }
+  const handleTabChange = (tab: 'approved' | 'pending') => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+    setData([]);
+    setTotalRecords(0);
   };
 
   const handleDownloadTemplate = async () => {
     if (!session?.access_token) return;
-    try { await callPgFunction(HMS_GATEWAY_CONFIGS.DESIGNATION_TEMPLATE_DOWNLOAD, {}, session.access_token); } catch (err: any) { setError(err.message); }
+    setTemplateDownloading(true);
+    setError(null);
+    try {
+      const res = await fetch(API_ENDPOINTS.EXCEL_TEMPLATE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config_id: HMS_GATEWAY_CONFIGS.DESIGNATION_TEMPLATE_DOWNLOAD,
+          params: {},
+          accessToken: session.access_token,
+        }),
+      });
+      const result = await res.json();
+      if (result.downloadUrl) {
+        window.open(result.downloadUrl, '_blank');
+      } else {
+        throw new Error(result.message || result.error || 'Template generation failed.');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setTemplateDownloading(false);
+    }
   };
 
   const columns: Column<Designation>[] = [
     { key: 'designation_name', header: 'Designation Name', sortable: true },
-    ...schema.map((field): Column<Designation> => ({
-      key: field.field_name, header: field.ui_label,
-      render: (val) => val === true ? 'Yes' : val === false ? 'No' : val || '-'
-    })),
-    { key: 'creator_emp_code', header: 'Created By' },
+    {
+        key: 'custom_fields',
+        header: 'Designation Info',
+        align: 'center',
+        render: (_, row) => {
+            const hasData = row.custom_fields && Object.keys(row.custom_fields).length > 0;
+            if (!hasData) return <span className="text-gray-400 text-xs">-</span>;
+            return (
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewMetadata(row); }}>
+                    View
+                </Button>
+            );
+        }
+    },
+    {
+      key: 'approval_status', header: 'Status',
+      render: (v) => (
+        <span className={`capitalize px-2 py-0.5 rounded-full text-xs font-medium ${v === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+          {v}
+        </span>
+      ),
+    },
     {
       key: 'actions', header: 'Actions', align: 'right',
       render: (_, row) => (
@@ -151,20 +244,31 @@ export default function DesignationMasterPage() {
     <ErrorBoundary>
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Designation Master</h1>
               <p className="text-gray-600 mt-1">Manage organizational designations.</p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={handleDownloadTemplate}>Download Template</Button>
-              <Button variant="secondary" onClick={() => setIsBulkUploadOpen(true)}>Bulk Upload</Button>
-              <Button variant="secondary" onClick={handleExport}>Export to Excel</Button>
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="secondary" onClick={handleDownloadTemplate} isLoading={templateDownloading}>
+                Download Template
+              </Button>
+              <Button variant="secondary" onClick={() => setIsBulkUploadModalOpen(true)}>
+                Bulk Upload
+              </Button>
+              <Button variant="secondary" onClick={() => setIsExportModalOpen(true)}>
+                Export to Excel
+              </Button>
               <Button onClick={() => handleOpenFormModal()}>+ Add Designation</Button>
             </div>
           </div>
 
-          {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">{error}</div>}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex justify-between items-center">
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="text-sm font-bold">Dismiss</button>
+            </div>
+          )}
 
           <div className="bg-white rounded-lg shadow-md border border-gray-200">
             <Tabs>
@@ -173,41 +277,126 @@ export default function DesignationMasterPage() {
             </Tabs>
             <div className="p-4">
               <DataTable data={data} columns={columns} loading={loading} rowKey="id" emptyMessage="No designations found." />
-              <Pagination currentPage={currentPage} totalPages={Math.ceil(totalRecords / pageSize)} totalItems={totalRecords} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(totalRecords / pageSize)}
+                totalItems={totalRecords}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+              />
             </div>
           </div>
         </div>
       </div>
 
+      {/* Add/Edit Form Modal */}
       {isFormModalOpen && (
-        <DesignationFormModal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} onSuccess={fetchData} item={editingItem} schema={schema} />
+        <DesignationFormModal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
+          onSuccess={fetchData}
+          item={editingItem}
+          schema={schema}
+        />
       )}
 
-      {isBulkUploadOpen && (
-        <Modal isOpen={isBulkUploadOpen} onClose={() => setIsBulkUploadOpen(false)} title="Bulk Upload Designations">
-          <BulkUpload config_id={HMS_GATEWAY_CONFIGS.DESIGNATION_BULK_INSERT} onUploadSuccess={() => { setIsBulkUploadOpen(false); fetchData(); }} />
+      {/* Bulk Upload Modal - uses universal-excel-upload architecture */}
+      {isBulkUploadModalOpen && (
+        <Modal isOpen={isBulkUploadModalOpen} onClose={() => setIsBulkUploadModalOpen(false)} title="Bulk Upload Designations">
+          <BulkUpload
+            config_id={HMS_GATEWAY_CONFIGS.DESIGNATION_EXCEL_UPLOAD}
+            onUploadSuccess={() => { setIsBulkUploadModalOpen(false); fetchData(); }}
+          />
         </Modal>
       )}
 
+      {/* Export Modal - same pattern as employee-roles export */}
+      {isExportModalOpen && (
+        <ExportUserRolesModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          config_id={HMS_GATEWAY_CONFIGS.DESIGNATION_EXPORT_EXCEL}
+          title="Export Designations to Excel"
+        />
+      )}
+
+      {/* Approve/Reject Confirmation Modal */}
       {isConfirmModalOpen && (
-        <Modal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} title={`${actionType === 'approve' ? 'Approve' : 'Reject'} Designation(s)`}>
+        <Modal
+          isOpen={isConfirmModalOpen}
+          onClose={() => setIsConfirmModalOpen(false)}
+          title={`${actionType === 'approve' ? 'Approve' : 'Reject'} Designation(s)`}
+        >
           <div className="space-y-4">
-            <p className="text-gray-600">Are you sure you want to {actionType} <strong>{selectedForAction.length}</strong> selected designation(s)?</p>
+            <p className="text-gray-600">
+              Are you sure you want to {actionType}{' '}
+              <strong>{selectedForAction.length}</strong> selected designation(s)?
+            </p>
+            <ul className="text-sm text-gray-700 bg-gray-50 rounded p-3 max-h-40 overflow-y-auto space-y-1">
+              {selectedForAction.map(b => (
+                <li key={b.id}>{b.designation_name}</li>
+              ))}
+            </ul>
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button variant="secondary" onClick={() => setIsConfirmModalOpen(false)}>Cancel</Button>
-              <Button variant={actionType === 'approve' ? 'primary' : 'destructive'} onClick={handleConfirmAction} isLoading={actionLoading}>Confirm {actionType}</Button>
+              <Button
+                variant={actionType === 'approve' ? 'primary' : 'destructive'}
+                onClick={handleConfirmAction}
+                isLoading={actionLoading}
+              >
+                Confirm {actionType}
+              </Button>
             </div>
           </div>
         </Modal>
       )}
+
+      {/* Metadata View Modal */}
+      {isMetadataModalOpen && metadataItem && (
+        <Modal
+          isOpen={isMetadataModalOpen}
+          onClose={() => setIsMetadataModalOpen(false)}
+          title="Designation Info"
+          maxWidth="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <h3 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">{metadataItem.designation_name} Details</h3>
+              {metadataItem.custom_fields && Object.keys(metadataItem.custom_fields).length > 0 ? (
+                <dl className="space-y-2 text-sm">
+                  {Object.entries(metadataItem.custom_fields).map(([key, value]) => (
+                    <div key={key} className="flex justify-between items-center border-b border-gray-100 last:border-0 pb-1">
+                      <dt className="text-gray-500 font-medium capitalize">{key.replace(/_/g, ' ')}</dt>
+                      <dd className="text-gray-900 font-semibold">{String(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="text-gray-500 italic text-sm text-center py-2">No additional data available.</p>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <Button variant="secondary" onClick={() => setIsMetadataModalOpen(false)}>Close</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
     </ErrorBoundary>
   );
 }
 
 // ============================================================================
-// Form Modal
+// Designation Form Modal (Add / Edit)
 // ============================================================================
-interface FormModalProps { isOpen: boolean; onClose: () => void; onSuccess: () => void; item: Designation | null; schema: SchemaField[]; }
+interface FormModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  item: Designation | null;
+  schema: SchemaField[];
+}
 
 function DesignationFormModal({ isOpen, onClose, onSuccess, item, schema }: FormModalProps) {
   const { session } = useSessionContext();
@@ -215,40 +404,117 @@ function DesignationFormModal({ isOpen, onClose, onSuccess, item, schema }: Form
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  useEffect(() => { setFormData(item ? item : { designation_name: '' }); }, [item]);
+  useEffect(() => {
+    if (item) {
+      const merged: Record<string, any> = {
+        designation_name: item.designation_name || '',
+      };
+      schema.forEach(field => {
+        const val = item.custom_fields?.[field.field_name] ?? item[field.field_name];
+        merged[field.field_name] = val ?? '';
+      });
+      setFormData(merged);
+    } else {
+      const empty: Record<string, any> = { designation_name: '' };
+      schema.forEach(field => {
+        empty[field.field_name] = field.data_type === 'boolean' ? false : '';
+      });
+      setFormData(empty);
+    }
+  }, [item, schema]);
 
-  const handleChange = (field: string, value: any) => { setFormData(prev => ({ ...prev, [field]: value })); };
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session?.access_token) return;
-    setFormLoading(true); setFormError(null);
+    setFormLoading(true);
+    setFormError(null);
     try {
-      const payload: any = { id: item?.id || null, designation_name: formData.designation_name };
-      schema.forEach(field => { payload[field.field_name] = formData[field.field_name]; });
-      const result = await callPgFunction(HMS_GATEWAY_CONFIGS.DESIGNATION_BULK_INSERT, { input_rows: [payload] }, session.access_token);
+      const payload: any = {
+        designation_name: formData.designation_name,
+      };
+      schema.forEach(field => {
+        const val = formData[field.field_name];
+        if (val !== undefined && val !== '') payload[field.field_name] = val;
+      });
+
+      const result = await callPgFunction(
+        HMS_GATEWAY_CONFIGS.DESIGNATION_BULK_INSERT,
+        { input_rows: [payload] },
+        session.access_token
+      );
+
       if (!result.success) throw new Error(result.error || 'Failed to save designation.');
-      onSuccess(); onClose();
-    } catch (err: any) { setFormError(err.message); } finally { setFormLoading(false); }
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      setFormError(err.message);
+    } finally {
+      setFormLoading(false);
+    }
   };
 
   const renderField = (field: SchemaField) => {
     const value = formData[field.field_name] ?? '';
     switch (field.data_type) {
-      case 'number': return <Input type="number" value={value} onChange={e => handleChange(field.field_name, e.target.valueAsNumber)} required={field.is_required} />;
-      case 'date': return <Input type="date" value={value} onChange={e => handleChange(field.field_name, e.target.value)} required={field.is_required} />;
-      case 'boolean': return <div className="flex items-center h-10"><input type="checkbox" checked={!!value} onChange={e => handleChange(field.field_name, e.target.checked)} className="h-5 w-5 text-blue-600 rounded" /></div>;
-      default: return <Input type="text" value={value} onChange={e => handleChange(field.field_name, e.target.value)} required={field.is_required} />;
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={value}
+            onChange={e => handleChange(field.field_name, e.target.value ? Number(e.target.value) : '')}
+            required={field.is_required}
+          />
+        );
+      case 'date':
+        return (
+          <Input
+            type="date"
+            value={value}
+            onChange={e => handleChange(field.field_name, e.target.value)}
+            required={field.is_required}
+          />
+        );
+      case 'boolean':
+        return (
+          <div className="flex items-center h-10">
+            <input
+              type="checkbox"
+              checked={!!value}
+              onChange={e => handleChange(field.field_name, e.target.checked)}
+              className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            />
+          </div>
+        );
+      default:
+        return (
+          <Input
+            type="text"
+            value={value}
+            onChange={e => handleChange(field.field_name, e.target.value)}
+            required={field.is_required}
+          />
+        );
     }
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={item ? 'Edit Designation' : 'Add New Designation'}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {formError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>}
+        {formError && (
+          <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">{formError}</div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Designation Name *</label>
-          <Input value={formData.designation_name || ''} onChange={e => handleChange('designation_name', e.target.value)} required placeholder="e.g. Senior Manager" />
+          <Input
+            value={formData.designation_name || ''}
+            onChange={e => handleChange('designation_name', e.target.value)}
+            required
+            placeholder="e.g. Senior Manager"
+          />
         </div>
         {schema.length > 0 && (
           <div className="border-t pt-4 mt-2">
@@ -256,16 +522,20 @@ function DesignationFormModal({ isOpen, onClose, onSuccess, item, schema }: Form
             <div className="space-y-4">
               {schema.map(field => (
                 <div key={field.field_name}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{field.ui_label} {field.is_required && '*'}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {field.ui_label} {field.is_required && '*'}
+                  </label>
                   {renderField(field)}
                 </div>
               ))}
             </div>
           </div>
         )}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" isLoading={formLoading}>{item ? 'Update Designation' : 'Create Designation'}</Button>
+        <div className="flex justify-end gap-3 pt-4 border-t mt-4">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={formLoading}>Cancel</Button>
+          <Button type="submit" isLoading={formLoading}>
+            {item ? 'Update Designation' : 'Create Designation'}
+          </Button>
         </div>
       </form>
     </Modal>
