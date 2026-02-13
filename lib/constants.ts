@@ -160,15 +160,15 @@ export const HMS_GATEWAY_CONFIGS = {
   POSITION_EXPORT_EXCEL: 'position-master-export-to-excel',
 
   // === Position Attributes - Department ===
-  DEPARTMENT_READ_APPROVED: 'departments-read-approved-ui',
-  DEPARTMENT_READ_PENDING: 'departments-read-pending-ui',
-  DEPARTMENT_READ_SCHEMA: 'departments-read-schema',
-  DEPARTMENT_APPROVE: 'departments-approve-universal',
-  DEPARTMENT_REJECT: 'departments-reject-universal',
-  DEPARTMENT_BULK_INSERT: 'departments-bulk-insert',
+  DEPARTMENT_READ_APPROVED: 'department-read-approved-ui',
+  DEPARTMENT_READ_PENDING: 'department-read-pending-ui',
+  DEPARTMENT_READ_SCHEMA: 'department-read-schema',
+  DEPARTMENT_APPROVE: 'department-approve-universal',
+  DEPARTMENT_REJECT: 'department-reject-universal',
+  DEPARTMENT_BULK_INSERT: 'department-bulk-insert',
   DEPARTMENT_SCHEMA_INSERT: 'departments-schema-insert',
-  DEPARTMENT_TEMPLATE_DOWNLOAD: 'departments-template-download',
-  DEPARTMENT_EXPORT_EXCEL: 'departments-master-export-to-excel',
+  DEPARTMENT_TEMPLATE_DOWNLOAD: 'department-template-download',
+  DEPARTMENT_EXPORT_EXCEL: 'department-master-export-to-excel',
   DEPARTMENT_EXCEL_UPLOAD: 'department-universal-excel-upload',
 
   // === Position Attributes - Designation ===

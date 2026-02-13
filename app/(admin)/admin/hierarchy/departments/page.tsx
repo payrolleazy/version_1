@@ -10,19 +10,16 @@ import Tabs from '@/components/Tabs';
 import { DataTable, Pagination, Column } from '@/components/ui/DataTable';
 import { LoadingState, ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { callPgFunction } from '@/lib/useGateway';
-import { PAGINATION, HMS_GATEWAY_CONFIGS } from '@/lib/constants';
+import { PAGINATION, HMS_GATEWAY_CONFIGS, API_ENDPOINTS } from '@/lib/constants';
 import BulkUpload from '@/components/BulkUpload';
 import ExportUserRolesModal from '@/components/ExportUserRolesModal';
 
-// ============================================================================
-// Types
-// ============================================================================
+// --- Types ---
 interface Department {
   id: number;
   department_name: string;
   approval_status: 'approved' | 'pending' | 'rejected';
   created_at: string;
-  creator_emp_code?: string;
   custom_fields?: Record<string, any>;
   [key: string]: any;
 }
@@ -34,9 +31,7 @@ interface SchemaField {
   is_required: boolean;
 }
 
-// ============================================================================
-// Main Page Component
-// ============================================================================
+// --- Main Page Component ---
 export default function DepartmentMasterPage() {
   const { session, isLoading: isSessionLoading } = useSessionContext();
   const router = useRouter();
@@ -45,14 +40,17 @@ export default function DepartmentMasterPage() {
   const [activeTab, setActiveTab] = useState<'approved' | 'pending'>('approved');
   const [data, setData] = useState<Department[]>([]);
   const [schema, setSchema] = useState<SchemaField[]>([]);
+
+  // UI State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Modal States
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false); // Using ExportUserRolesModal pattern
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [templateDownloading, setTemplateDownloading] = useState(false);
 
   // -- NEW: Metadata Modal State --
   const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
@@ -79,12 +77,13 @@ export default function DepartmentMasterPage() {
       const configId = activeTab === 'approved'
         ? HMS_GATEWAY_CONFIGS.DEPARTMENT_READ_APPROVED
         : HMS_GATEWAY_CONFIGS.DEPARTMENT_READ_PENDING;
+
       const result = await callPgFunction(
-        configId, 
-        { page_number: currentPage, page_size: pageSize }, 
+        configId,
+        { page_number: currentPage, page_size: pageSize },
         session.access_token
       );
-      
+
       if (result.success) {
         const details = result.data?.details || result.data || {};
         setData(details?.data || []);
@@ -114,8 +113,20 @@ export default function DepartmentMasterPage() {
   // Auth Check
   useEffect(() => {
     if (!isSessionLoading && !session) router.push('/admin/auth/login');
-    if (session) { fetchData(); fetchSchema(); }
-  }, [session, isSessionLoading, router, fetchData, fetchSchema]);
+  }, [session, isSessionLoading, router]);
+
+  // Fetch data whenever activeTab or pagination changes
+  useEffect(() => {
+    if (session?.access_token) fetchData();
+  }, [fetchData, session?.access_token]);
+
+  // Fetch schema only once when session is ready
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchSchema();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.access_token]);
 
   // --- Handlers ---
 
@@ -139,6 +150,7 @@ export default function DepartmentMasterPage() {
   const handleConfirmAction = async () => {
     if (!session?.access_token || !actionType || selectedForAction.length === 0) return;
     setActionLoading(true);
+    setError(null);
     try {
       const configId = actionType === 'approve' ? HMS_GATEWAY_CONFIGS.DEPARTMENT_APPROVE : HMS_GATEWAY_CONFIGS.DEPARTMENT_REJECT;
       const result = await callPgFunction(configId, { input_rows: selectedForAction.map(d => ({ id: d.id })) }, session.access_token);
@@ -159,41 +171,50 @@ export default function DepartmentMasterPage() {
     setTotalRecords(0);
   };
 
-  // Note: Export logic handles raw download via Gateway directly, UI handled by ExportUserRolesModal
   const handleDownloadTemplate = async () => {
     if (!session?.access_token) return;
+    setTemplateDownloading(true);
+    setError(null);
     try {
-      const result = await callPgFunction(HMS_GATEWAY_CONFIGS.DEPARTMENT_TEMPLATE_DOWNLOAD, {}, session.access_token);
-      if (result.data?.downloadUrl) {
-         window.open(result.data.downloadUrl, '_blank');
+      const res = await fetch(API_ENDPOINTS.EXCEL_TEMPLATE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config_id: HMS_GATEWAY_CONFIGS.DEPARTMENT_TEMPLATE_DOWNLOAD,
+          params: {},
+          accessToken: session.access_token,
+        }),
+      });
+      const result = await res.json();
+      if (result.downloadUrl) {
+        window.open(result.downloadUrl, '_blank');
+      } else {
+        throw new Error(result.message || result.error || 'Template generation failed.');
       }
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setTemplateDownloading(false);
     }
   };
 
-  // Columns definition matching Branch Master architecture
   const columns: Column<Department>[] = [
     { key: 'department_name', header: 'Department Name', sortable: true },
-    
-    // -- MODIFIED: Replaced spread schema columns with a single Metadata action column --
+    // -- MODIFIED: Replaced spread dynamicColumns with a single Metadata action column --
     {
-      key: 'custom_fields',
-      header: 'Meta Data',
-      align: 'center',
-      render: (_, row) => {
-        // Check if custom_fields exists and has keys
-        const hasData = row.custom_fields && Object.keys(row.custom_fields).length > 0;
-        if (!hasData) return <span className="text-gray-400 text-xs">-</span>;
-        return (
-          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewMetadata(row); }}>
-            View
-          </Button>
-        );
-      }
+        key: 'custom_fields',
+        header: 'Department Info',
+        align: 'center',
+        render: (_, row) => {
+            const hasData = row.custom_fields && Object.keys(row.custom_fields).length > 0;
+            if (!hasData) return <span className="text-gray-400 text-xs">-</span>;
+            return (
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewMetadata(row); }}>
+                    View
+                </Button>
+            );
+        }
     },
-
-    { key: 'creator_emp_code', header: 'Created By' },
     {
       key: 'approval_status', header: 'Status',
       render: (v) => (
@@ -203,9 +224,7 @@ export default function DepartmentMasterPage() {
       ),
     },
     {
-      key: 'actions',
-      header: 'Actions',
-      align: 'right',
+      key: 'actions', header: 'Actions', align: 'right',
       render: (_, row) => (
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => handleOpenFormModal(row)}>Edit</Button>
@@ -232,14 +251,25 @@ export default function DepartmentMasterPage() {
               <p className="text-gray-600 mt-1">Manage organizational departments.</p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Button variant="secondary" onClick={handleDownloadTemplate}>Download Template</Button>
-              <Button variant="secondary" onClick={() => setIsBulkUploadOpen(true)}>Bulk Upload</Button>
-              <Button variant="secondary" onClick={() => setIsExportModalOpen(true)}>Export to Excel</Button>
+              <Button variant="secondary" onClick={handleDownloadTemplate} isLoading={templateDownloading}>
+                Download Template
+              </Button>
+              <Button variant="secondary" onClick={() => setIsBulkUploadModalOpen(true)}>
+                Bulk Upload
+              </Button>
+              <Button variant="secondary" onClick={() => setIsExportModalOpen(true)}>
+                Export to Excel
+              </Button>
               <Button onClick={() => handleOpenFormModal()}>+ Add Department</Button>
             </div>
           </div>
 
-          {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">{error}</div>}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex justify-between items-center">
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="text-sm font-bold">Dismiss</button>
+            </div>
+          )}
 
           <div className="bg-white rounded-lg shadow-md border border-gray-200">
             <Tabs>
@@ -248,7 +278,14 @@ export default function DepartmentMasterPage() {
             </Tabs>
             <div className="p-4">
               <DataTable data={data} columns={columns} loading={loading} rowKey="id" emptyMessage="No departments found." />
-              <Pagination currentPage={currentPage} totalPages={Math.ceil(totalRecords / pageSize)} totalItems={totalRecords} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(totalRecords / pageSize)}
+                totalItems={totalRecords}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+              />
             </div>
           </div>
         </div>
@@ -265,17 +302,17 @@ export default function DepartmentMasterPage() {
         />
       )}
 
-      {/* Bulk Upload Modal - Updated to use 'departments-universal-excel-upload' */}
-      {isBulkUploadOpen && (
-        <Modal isOpen={isBulkUploadOpen} onClose={() => setIsBulkUploadOpen(false)} title="Bulk Upload Departments">
-          <BulkUpload 
-            config_id="departments-universal-excel-upload" // Updated config ID for universal upload
-            onUploadSuccess={() => { setIsBulkUploadOpen(false); fetchData(); }} 
+      {/* Bulk Upload Modal - uses universal-excel-upload architecture */}
+      {isBulkUploadModalOpen && (
+        <Modal isOpen={isBulkUploadModalOpen} onClose={() => setIsBulkUploadModalOpen(false)} title="Bulk Upload Departments">
+          <BulkUpload
+            config_id={HMS_GATEWAY_CONFIGS.DEPARTMENT_EXCEL_UPLOAD}
+            onUploadSuccess={() => { setIsBulkUploadModalOpen(false); fetchData(); }}
           />
         </Modal>
       )}
 
-      {/* Export Modal */}
+      {/* Export Modal - same pattern as employee-roles export */}
       {isExportModalOpen && (
         <ExportUserRolesModal
           isOpen={isExportModalOpen}
@@ -285,14 +322,30 @@ export default function DepartmentMasterPage() {
         />
       )}
 
-      {/* Confirm Action Modal */}
+      {/* Approve/Reject Confirmation Modal */}
       {isConfirmModalOpen && (
-        <Modal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} title={`${actionType === 'approve' ? 'Approve' : 'Reject'} Department(s)`}>
+        <Modal
+          isOpen={isConfirmModalOpen}
+          onClose={() => setIsConfirmModalOpen(false)}
+          title={`${actionType === 'approve' ? 'Approve' : 'Reject'} Department(s)`}
+        >
           <div className="space-y-4">
-            <p className="text-gray-600">Are you sure you want to {actionType} <strong>{selectedForAction.length}</strong> selected department(s)?</p>
+            <p className="text-gray-600">
+              Are you sure you want to {actionType}{' '}
+              <strong>{selectedForAction.length}</strong> selected department(s)?
+            </p>
+            <ul className="text-sm text-gray-700 bg-gray-50 rounded p-3 max-h-40 overflow-y-auto space-y-1">
+              {selectedForAction.map(b => (
+                <li key={b.id}>{b.department_name}</li>
+              ))}
+            </ul>
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button variant="secondary" onClick={() => setIsConfirmModalOpen(false)}>Cancel</Button>
-              <Button variant={actionType === 'approve' ? 'primary' : 'destructive'} onClick={handleConfirmAction} isLoading={actionLoading}>
+              <Button
+                variant={actionType === 'approve' ? 'primary' : 'destructive'}
+                onClick={handleConfirmAction}
+                isLoading={actionLoading}
+              >
                 Confirm {actionType}
               </Button>
             </div>
@@ -305,7 +358,7 @@ export default function DepartmentMasterPage() {
         <Modal
           isOpen={isMetadataModalOpen}
           onClose={() => setIsMetadataModalOpen(false)}
-          title="Department Meta Data"
+          title="Department Info"
           maxWidth="max-w-md"
         >
           <div className="space-y-4">
@@ -336,7 +389,7 @@ export default function DepartmentMasterPage() {
 }
 
 // ============================================================================
-// Form Modal Sub-Component
+// Department Form Modal (Add / Edit)
 // ============================================================================
 interface FormModalProps {
   isOpen: boolean;
@@ -354,13 +407,22 @@ function DepartmentFormModal({ isOpen, onClose, onSuccess, item, schema }: FormM
 
   useEffect(() => {
     if (item) {
-      // Flatten custom_fields into formData for editing
-      const flatData = { ...item, ...(item.custom_fields || {}) };
-      setFormData(flatData);
+      const merged: Record<string, any> = {
+        department_name: item.department_name || '',
+      };
+      schema.forEach(field => {
+        const val = item.custom_fields?.[field.field_name] ?? item[field.field_name];
+        merged[field.field_name] = val ?? '';
+      });
+      setFormData(merged);
     } else {
-      setFormData({ department_name: '' });
+      const empty: Record<string, any> = { department_name: '' };
+      schema.forEach(field => {
+        empty[field.field_name] = field.data_type === 'boolean' ? false : '';
+      });
+      setFormData(empty);
     }
-  }, [item]);
+  }, [item, schema]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -372,15 +434,20 @@ function DepartmentFormModal({ isOpen, onClose, onSuccess, item, schema }: FormM
     setFormLoading(true);
     setFormError(null);
     try {
-      const payload: any = { id: item?.id || null, department_name: formData.department_name };
-      // Map dynamic schema fields
-      schema.forEach(field => { 
-        if (formData[field.field_name] !== undefined) {
-            payload[field.field_name] = formData[field.field_name]; 
-        }
+      const payload: any = {
+        department_name: formData.department_name,
+      };
+      schema.forEach(field => {
+        const val = formData[field.field_name];
+        if (val !== undefined && val !== '') payload[field.field_name] = val;
       });
-      
-      const result = await callPgFunction(HMS_GATEWAY_CONFIGS.DEPARTMENT_BULK_INSERT, { input_rows: [payload] }, session.access_token);
+
+      const result = await callPgFunction(
+        HMS_GATEWAY_CONFIGS.DEPARTMENT_BULK_INSERT,
+        { input_rows: [payload] },
+        session.access_token
+      );
+
       if (!result.success) throw new Error(result.error || 'Failed to save department.');
       onSuccess();
       onClose();
@@ -394,20 +461,61 @@ function DepartmentFormModal({ isOpen, onClose, onSuccess, item, schema }: FormM
   const renderField = (field: SchemaField) => {
     const value = formData[field.field_name] ?? '';
     switch (field.data_type) {
-      case 'number': return <Input type="number" value={value} onChange={e => handleChange(field.field_name, e.target.valueAsNumber)} required={field.is_required} />;
-      case 'date': return <Input type="date" value={value} onChange={e => handleChange(field.field_name, e.target.value)} required={field.is_required} />;
-      case 'boolean': return <div className="flex items-center h-10"><input type="checkbox" checked={!!value} onChange={e => handleChange(field.field_name, e.target.checked)} className="h-5 w-5 text-blue-600 rounded" /></div>;
-      default: return <Input type="text" value={value} onChange={e => handleChange(field.field_name, e.target.value)} required={field.is_required} />;
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={value}
+            onChange={e => handleChange(field.field_name, e.target.value ? Number(e.target.value) : '')}
+            required={field.is_required}
+          />
+        );
+      case 'date':
+        return (
+          <Input
+            type="date"
+            value={value}
+            onChange={e => handleChange(field.field_name, e.target.value)}
+            required={field.is_required}
+          />
+        );
+      case 'boolean':
+        return (
+          <div className="flex items-center h-10">
+            <input
+              type="checkbox"
+              checked={!!value}
+              onChange={e => handleChange(field.field_name, e.target.checked)}
+              className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            />
+          </div>
+        );
+      default:
+        return (
+          <Input
+            type="text"
+            value={value}
+            onChange={e => handleChange(field.field_name, e.target.value)}
+            required={field.is_required}
+          />
+        );
     }
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={item ? 'Edit Department' : 'Add New Department'}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {formError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>}
+        {formError && (
+          <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">{formError}</div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Department Name *</label>
-          <Input value={formData.department_name || ''} onChange={e => handleChange('department_name', e.target.value)} required placeholder="e.g. Engineering" />
+          <Input
+            value={formData.department_name || ''}
+            onChange={e => handleChange('department_name', e.target.value)}
+            required
+            placeholder="e.g. Engineering"
+          />
         </div>
         {schema.length > 0 && (
           <div className="border-t pt-4 mt-2">
@@ -415,16 +523,20 @@ function DepartmentFormModal({ isOpen, onClose, onSuccess, item, schema }: FormM
             <div className="space-y-4">
               {schema.map(field => (
                 <div key={field.field_name}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{field.ui_label} {field.is_required && '*'}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {field.ui_label} {field.is_required && '*'}
+                  </label>
                   {renderField(field)}
                 </div>
               ))}
             </div>
           </div>
         )}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" isLoading={formLoading}>{item ? 'Update Department' : 'Create Department'}</Button>
+        <div className="flex justify-end gap-3 pt-4 border-t mt-4">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={formLoading}>Cancel</Button>
+          <Button type="submit" isLoading={formLoading}>
+            {item ? 'Update Department' : 'Create Department'}
+          </Button>
         </div>
       </form>
     </Modal>
