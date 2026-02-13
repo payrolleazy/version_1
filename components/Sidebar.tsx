@@ -247,7 +247,11 @@ export default function AdminSidebar() {
               <AccordionLink href="/admin/hierarchy/designations" label="Designation Master" isActive={isActive('/admin/hierarchy/designations')} />
               <AccordionLink href="/admin/hierarchy/branches" label="Branch Master" isActive={isActive('/admin/hierarchy/branches')} />
               <AccordionLink href="/admin/hierarchy/locations" label="Location Master" isActive={isActive('/admin/hierarchy/locations')} />
-              
+              <AccordionLink href="/admin/hierarchy/cost-centers" label="Cost Center Master" isActive={isActive('/admin/hierarchy/cost-centers')} />
+              <AccordionLink href="/admin/hierarchy/profit-centers" label="Profit Center Master" isActive={isActive('/admin/hierarchy/profit-centers')} />
+              <AccordionLink href="/admin/hierarchy/divisions" label="Division Master" isActive={isActive('/admin/hierarchy/divisions')} />
+              <AccordionLink href="/admin/hierarchy/business-units" label="Business Unit Master" isActive={isActive('/admin/hierarchy/business-units')} />
+
               {/* Added Link */}
               <AccordionLink href="/admin/hierarchy/assign-employee" label="Assign Employee" isActive={isActive('/admin/hierarchy/assign-employee')} />
               

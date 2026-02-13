@@ -309,7 +309,11 @@ export default function AdminSidebar() {
                   <SidebarLink href="/admin/hierarchy/designations" label="Designation Master" isActive={isActive('/admin/hierarchy/designations')} />
                   <SidebarLink href="/admin/hierarchy/branches" label="Branch Master" isActive={isActive('/admin/hierarchy/branches')} />
                   <SidebarLink href="/admin/hierarchy/locations" label="Location Master" isActive={isActive('/admin/hierarchy/locations')} />
-                  
+                  <SidebarLink href="/admin/hierarchy/cost-centers" label="Cost Center Master" isActive={isActive('/admin/hierarchy/cost-centers')} />
+                  <SidebarLink href="/admin/hierarchy/profit-centers" label="Profit Center Master" isActive={isActive('/admin/hierarchy/profit-centers')} />
+                  <SidebarLink href="/admin/hierarchy/divisions" label="Division Master" isActive={isActive('/admin/hierarchy/divisions')} />
+                  <SidebarLink href="/admin/hierarchy/business-units" label="Business Unit Master" isActive={isActive('/admin/hierarchy/business-units')} />
+
                   <div className="my-4 border-t border-gray-100 dark:border-gray-800"></div>
                   <p className="text-xs text-gray-500 mb-4 px-2">OPERATIONS</p>
                   <SidebarLink href="/admin/hierarchy/assign-employee" label="Assign Employee" isActive={isActive('/admin/hierarchy/assign-employee')} />
