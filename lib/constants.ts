@@ -196,8 +196,8 @@ export const HMS_GATEWAY_CONFIGS = {
   BRANCH_EXCEL_UPLOAD: 'branch-universal-excel-upload',
 
   // === Position Attributes - Location ===
-  LOCATION_READ_APPROVED: 'branch-read-approved-ui',
-  LOCATION_READ_PENDING: 'location-read-pending',
+  LOCATION_READ_APPROVED: 'location-read-approved-ui',
+  LOCATION_READ_PENDING: 'location-read-pending-ui',
   LOCATION_READ_SCHEMA: 'location-read-schema',
   LOCATION_APPROVE: 'location-approve-universal',
   LOCATION_REJECT: 'location-reject-universal',
@@ -205,6 +205,7 @@ export const HMS_GATEWAY_CONFIGS = {
   LOCATION_SCHEMA_INSERT: 'location-schema-insert',
   LOCATION_TEMPLATE_DOWNLOAD: 'location-template-download',
   LOCATION_EXPORT_EXCEL: 'location-master-export-to-excel',
+  LOCATION_EXCEL_UPLOAD: 'location-universal-excel-upload',
 
   // === Hierarchy Operations ===
   ORG_CHART: 'hierarchy_get_org_chart',
