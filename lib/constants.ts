@@ -207,6 +207,54 @@ export const HMS_GATEWAY_CONFIGS = {
   LOCATION_EXPORT_EXCEL: 'location-master-export-to-excel',
   LOCATION_EXCEL_UPLOAD: 'location-universal-excel-upload',
 
+  // === Position Attributes - Cost Center ===
+  COST_CENTER_READ_APPROVED: 'cost_center-read-approved-ui',
+  COST_CENTER_READ_PENDING: 'cost_center-read-pending-ui',
+  COST_CENTER_READ_SCHEMA: 'cost_center-read-schema',
+  COST_CENTER_APPROVE: 'cost_center-approve-universal',
+  COST_CENTER_REJECT: 'cost_center-reject-universal',
+  COST_CENTER_BULK_INSERT: 'cost_center-bulk-insert',
+  COST_CENTER_SCHEMA_INSERT: 'cost_center-schema-insert',
+  COST_CENTER_TEMPLATE_DOWNLOAD: 'cost_center-template-download',
+  COST_CENTER_EXPORT_EXCEL: 'cost_center-master-export-to-excel',
+  COST_CENTER_EXCEL_UPLOAD: 'cost_center-universal-excel-upload',
+
+  // === Position Attributes - Profit Center ===
+  PROFIT_CENTER_READ_APPROVED: 'profit_center-read-approved-ui',
+  PROFIT_CENTER_READ_PENDING: 'profit_center-read-pending-ui',
+  PROFIT_CENTER_READ_SCHEMA: 'profit_center-read-schema',
+  PROFIT_CENTER_APPROVE: 'profit_center-approve-universal',
+  PROFIT_CENTER_REJECT: 'profit_center-reject-universal',
+  PROFIT_CENTER_BULK_INSERT: 'profit_center-bulk-insert',
+  PROFIT_CENTER_SCHEMA_INSERT: 'profit_center-schema-insert',
+  PROFIT_CENTER_TEMPLATE_DOWNLOAD: 'profit_center-template-download',
+  PROFIT_CENTER_EXPORT_EXCEL: 'profit_center-master-export-to-excel',
+  PROFIT_CENTER_EXCEL_UPLOAD: 'profit_center-universal-excel-upload',
+
+  // === Position Attributes - Division ===
+  DIVISION_READ_APPROVED: 'division-read-approved-ui',
+  DIVISION_READ_PENDING: 'division-read-pending-ui',
+  DIVISION_READ_SCHEMA: 'division-read-schema',
+  DIVISION_APPROVE: 'division-approve-universal',
+  DIVISION_REJECT: 'division-reject-universal',
+  DIVISION_BULK_INSERT: 'division-bulk-insert',
+  DIVISION_SCHEMA_INSERT: 'division-schema-insert',
+  DIVISION_TEMPLATE_DOWNLOAD: 'division-template-download',
+  DIVISION_EXPORT_EXCEL: 'division-master-export-to-excel',
+  DIVISION_EXCEL_UPLOAD: 'division-universal-excel-upload',
+
+  // === Position Attributes - Business Unit ===
+  BUSINESS_UNIT_READ_APPROVED: 'business_unit-read-approved-ui',
+  BUSINESS_UNIT_READ_PENDING: 'business_unit-read-pending-ui',
+  BUSINESS_UNIT_READ_SCHEMA: 'business_unit-read-schema',
+  BUSINESS_UNIT_APPROVE: 'business_unit-approve-universal',
+  BUSINESS_UNIT_REJECT: 'business_unit-reject-universal',
+  BUSINESS_UNIT_BULK_INSERT: 'business_unit-bulk-insert',
+  BUSINESS_UNIT_SCHEMA_INSERT: 'business_unit-schema-insert',
+  BUSINESS_UNIT_TEMPLATE_DOWNLOAD: 'business_unit-template-download',
+  BUSINESS_UNIT_EXPORT_EXCEL: 'business_unit-master-export-to-excel',
+  BUSINESS_UNIT_EXCEL_UPLOAD: 'business_unit-universal-excel-upload',
+
   // === Hierarchy Operations ===
   ORG_CHART: 'hierarchy_get_org_chart',
   ORG_CHART_EMPLOYEE: 'hierarchy_get_org_chart_employee',
